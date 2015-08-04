@@ -47,8 +47,8 @@ public abstract class AbstractDiaKafkaConsumer extends Thread {
      */
     protected ConsumerConnector consumerConnector;
 
-    private String kafkaTopic;
-    private String zooUrl;
+    protected String kafkaTopic;
+    protected String zooUrl;
 
     /**
      * Initialize
@@ -68,7 +68,7 @@ public abstract class AbstractDiaKafkaConsumer extends Thread {
     }
 
     public void initialize(String solrUrl, String solrCollection) {
-        this.initialize(solrUrl, solrCollection, Constants.ZOO_URL, Constants.TOPIC);
+        this.initialize(solrUrl, solrCollection, Constants.ZOO_URL, Constants.KAFKA_TOPIC);
     }
 
     /**
@@ -86,9 +86,9 @@ public abstract class AbstractDiaKafkaConsumer extends Thread {
     public void run() {
         LOG.info(String.format("[%s] started.", this.getClass().getSimpleName()));
         Map<String, Integer> topicCountMap = new HashMap<String, Integer>();
-        topicCountMap.put(TOPIC, new Integer(1));
+        topicCountMap.put(KAFKA_TOPIC, new Integer(1));
         Map<String, List<KafkaStream<byte[], byte[]>>> consumerMap = consumerConnector.createMessageStreams(topicCountMap);
-        KafkaStream<byte[], byte[]> stream = consumerMap.get(TOPIC).get(0);
+        KafkaStream<byte[], byte[]> stream = consumerMap.get(KAFKA_TOPIC).get(0);
         ConsumerIterator<byte[], byte[]> it = stream.iterator();
         int msgCnt = 0;
         while (it.hasNext()) {

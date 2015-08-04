@@ -16,18 +16,17 @@
  */
 package org.dia.kafka.isatools.consumer;
 
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.CommandLineParser;
-import org.apache.commons.cli.DefaultParser;
-import org.apache.commons.cli.HelpFormatter;
-import org.apache.commons.cli.Options;
-import org.apache.commons.cli.ParseException;
 import org.dia.kafka.AbstractDiaKafkaConsumer;
 import org.dia.kafka.Constants;
 import org.json.simple.JSONObject;
 import org.json.simple.JSONValue;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.Map;
+import java.util.Properties;
 
 import static org.dia.kafka.Constants.*;
 
@@ -36,105 +35,106 @@ import static org.dia.kafka.Constants.*;
  */
 public class ISAToolsKafkaConsumer extends AbstractDiaKafkaConsumer {
 
-    /**
-     * Constructor
-     *
-     * @param solrUrl Solr URL to use with this consumer
-     * @param solrCollection Solr collection/core to use with this consumer
-     * @param zooUrl ZooKeeper URL to use with this consumer
-     * @param topic Kafka Topic to use with this consumer
-     */
-    public ISAToolsKafkaConsumer(String zooUrl, String topic) {
-        initialize(zooUrl, topic);
-    }
+  private static final String ISATOOLS_KAFKA_DEFAULT_PROPERTIES_FILE = "isatools-kafka.properties";
 
-    public static void main(String[] args) {
-        String zooUrl = ZOO_URL;
-        String kafkaTopic = TOPIC;
-        
-        Options options = new Options();
+  private static final Logger LOG = LoggerFactory.getLogger(ISAToolsKafkaConsumer.class);
 
-        options.addOption("zo", "zoo-url", true, "The ZooKeeper URL to use with this consumer.");
-        options.addOption("kt", "kafka-topic", true, "The Kafka Topic to use with this consumer.");
-        
-        CommandLineParser parser = new DefaultParser();;
-        CommandLine cmd = null;
+  /**
+   * Constructor
+   *
+   * @param solrUrl Solr URL to use with this consumer
+   * @param solrCollection Solr collection/core to use with this consumer
+   * @param zooUrl ZooKeeper URL to use with this consumer
+   * @param topic Kafka Topic to use with this consumer
+   */
+  public ISAToolsKafkaConsumer(String kafkaTopic, String zooUrl) {
+    this.kafkaTopic = kafkaTopic;
+    this.zooUrl = zooUrl;
+  }
+
+  public static void main(String[] args) {
+    Properties props = new Properties();
+    InputStream stream = ISAToolsKafkaConsumer.class.getClassLoader()
+        .getResourceAsStream(ISATOOLS_KAFKA_DEFAULT_PROPERTIES_FILE);
+    if(stream != null) {
+      try {
+        props.load(stream);
+      } catch (IOException e) {
+        e.printStackTrace();
+      } finally {
         try {
-            cmd = parser.parse(options, args);
-            if (cmd.getArgs().length != 5) {
-                throw new ParseException("Did not see expected # of arguments, saw " + cmd.getArgs().length);
-            }
-        } catch (ParseException e) {
-            System.err.println("Failed to parse command line " + e.getMessage());
-            System.err.println();
-            HelpFormatter formatter = new HelpFormatter();
-            formatter.printHelp(ISAToolsKafkaConsumer.class.getClass().getSimpleName() + " <zoo-url> <kafka-topic>", options);
-            System.exit(-1);
+          stream.close();
+        } catch (IOException e) {
+          e.printStackTrace();
         }
-        ISAToolsKafkaConsumer solrK = new ISAToolsKafkaConsumer(
-            (cmd.getOptionValue("zo") == null) ? zooUrl : cmd.getOptionValue("zo"), 
-                (cmd.getOptionValue("kt") == null) ? kafkaTopic : cmd.getOptionValue("kt"));
-        solrK.start();
+      }
+    } else {
+      LOG.warn(ISATOOLS_KAFKA_DEFAULT_PROPERTIES_FILE + " not found, properties will be empty.");
     }
+    ISAToolsKafkaConsumer solrK = new ISAToolsKafkaConsumer
+        (props.getProperty("isatools.kafka.zookeeper", Constants.ZOO_URL), 
+            props.getProperty("isatools.kafka.topic", Constants.KAFKA_TOPIC));
+    solrK.start();
+  }
 
-    @Override
-    public void processMessage(String kafkaMsg) {
-        // decide where the message is comming from
-        JSONObject jsonObject = (JSONObject) JSONValue.parse(kafkaMsg);
-        Constants.DataSource source = Constants.DataSource.valueOf(jsonObject.get(SOURCE_TAG).toString());
-        JSONObject doc = null;
-        switch (source) {
-            // encode message into LabkeyFormat
-            case OODT:
-                doc = convertOodtMsgIsa(jsonObject);
-                break;
-            case ISATOOLS:
-                doc = convertLabkeyMsgIsa(jsonObject);
-                break;
-            default:
-                throw new IllegalArgumentException("Data source not supported yet, please try one "
-                        + "of 'oodt', or 'labkey'. Additionally, please write to celgene-jpl@jpl.nasa.gov"
-                        + "and let us know about new data sources you would like to see supported.");
-        }
-        // insert message into LabKey
-        this.pushMsgToIsaTool(doc);
+  @Override
+  public void processMessage(String kafkaMsg) {
+    // decide where the message is comming from
+    JSONObject jsonObject = (JSONObject) JSONValue.parse(kafkaMsg);
+    Constants.DataSource source = Constants.DataSource.valueOf(jsonObject.get(SOURCE_TAG).toString());
+    JSONObject doc = null;
+    switch (source) {
+    // encode message into LabkeyFormat
+    case OODT:
+      doc = convertOodtMsgIsa(jsonObject);
+      break;
+    case ISATOOLS:
+      doc = convertLabkeyMsgIsa(jsonObject);
+      break;
+    default:
+      throw new IllegalArgumentException("Data source not supported yet, please try one "
+          + "of 'oodt', or 'labkey'. Additionally, please write to celgene-jpl@jpl.nasa.gov"
+          + "and let us know about new data sources you would like to see supported.");
     }
+    // insert message into LabKey
+    this.pushMsgToIsaTool(doc);
+  }
 
-    /**
-     * Maps ISATools fields into Labkey's fields
-     *
-     * @param jsonObject
-     * @return
-     */
-    private JSONObject convertLabkeyMsgIsa(JSONObject jsonObject) {
-        JSONObject newJson = new JSONObject();
-        for (Map.Entry entry : LABKEY_ISA.entrySet()) {
-            newJson.put(entry.getValue(), jsonObject.get(entry.getKey()));
-        }
-        return newJson;
+  /**
+   * Maps ISATools fields into Labkey's fields
+   *
+   * @param jsonObject
+   * @return
+   */
+  private JSONObject convertLabkeyMsgIsa(JSONObject jsonObject) {
+    JSONObject newJson = new JSONObject();
+    for (Map.Entry entry : LABKEY_ISA.entrySet()) {
+      newJson.put(entry.getValue(), jsonObject.get(entry.getKey()));
     }
+    return newJson;
+  }
 
-    /**
-     * * Maps OODT fields into Labkey's fields
-     *
-     * @param jsonObject
-     * @return
-     */
-    private JSONObject convertOodtMsgIsa(JSONObject jsonObject) {
-        JSONObject newJson = new JSONObject();
-        for (Map.Entry entry : OODT_ISA.entrySet()) {
-            newJson.put(entry.getValue(), jsonObject.get(entry.getKey()));
-        }
-        return newJson;
+  /**
+   * * Maps OODT fields into Labkey's fields
+   *
+   * @param jsonObject
+   * @return
+   */
+  private JSONObject convertOodtMsgIsa(JSONObject jsonObject) {
+    JSONObject newJson = new JSONObject();
+    for (Map.Entry entry : OODT_ISA.entrySet()) {
+      newJson.put(entry.getValue(), jsonObject.get(entry.getKey()));
     }
+    return newJson;
+  }
 
-    /**
-     * Pushes mapped object into Labkey
-     *
-     * @param doc
-     */
-    private void pushMsgToIsaTool(JSONObject doc) {
-        //TODO convertion of jsonObj into ISATool format
-        LOG.error(String.format("[%] Msg <%s> not pushed into ISATools.", this.getClass().getSimpleName(), doc.toJSONString()));
-    }
+  /**
+   * Pushes mapped object into Labkey
+   *
+   * @param doc
+   */
+  private void pushMsgToIsaTool(JSONObject doc) {
+    //TODO convertion of jsonObj into ISATool format
+    LOG.error(String.format("[%] Msg <%s> not pushed into ISATools.", this.getClass().getSimpleName(), doc.toJSONString()));
+  }
 }

@@ -73,7 +73,7 @@ public class ISAToolsKafkaProducer extends AbstractDiaKafkaProducer {
     public static void main(String[] args) throws IOException {
         String isaToolsDir = null;
         long waitTime = DEFAULT_WAIT;
-        String kafkaTopic = TOPIC;
+        String kafkaTopic = KAFKA_TOPIC;
         String kafkaUrl = KAFKA_URL;
 
         // TODO Implement commons-cli

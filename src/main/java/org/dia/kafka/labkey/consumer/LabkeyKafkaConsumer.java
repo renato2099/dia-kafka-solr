@@ -45,7 +45,7 @@ public class LabkeyKafkaConsumer extends AbstractDiaKafkaConsumer {
         String solrCollection = DEFAULT_SOLR_COL;
         String solrUrl = SOLR_URL;
         String zooUrl = ZOO_URL;
-        String kafkaTopic = TOPIC;
+        String kafkaTopic = KAFKA_TOPIC;
 
         // TODO Implement commons-cli
         String usage = "java -jar ./target/labkey-consumer.jar [--solr-url <url>] [--sorl-collection <collection>] [--zoo-url <url>] " +

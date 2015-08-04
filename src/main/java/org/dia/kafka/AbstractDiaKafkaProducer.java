@@ -52,7 +52,7 @@ public class AbstractDiaKafkaProducer {
      */
     protected void initializeKafkaProducer(Properties properties) {
         ProducerConfig producerConfig = new ProducerConfig(properties);
-        this.kafkaTopic = Constants.TOPIC;
+        this.kafkaTopic = Constants.KAFKA_TOPIC;
         // TODO this is not going to give us the best performance, change serializer
         this.producer = new kafka.javaapi.producer.Producer<String, String>(producerConfig);
     }

@@ -177,7 +177,7 @@ public class Constants {
     /**
      * Topic name
      */
-    public static final String TOPIC = "dia-updates";
+    public static final String KAFKA_TOPIC = "dia-updates";
     /**
      * Kafka url
      */

@@ -84,7 +84,7 @@ public class LabkeyKafkaProducer extends AbstractDiaKafkaProducer {
     String url = null;
     String user = null;
     String pass = null;
-    String kafkaTopic = Constants.TOPIC;
+    String kafkaTopic = Constants.KAFKA_TOPIC;
     String kafkaUrl = Constants.KAFKA_URL;
     String projectName = TOP_PROJECT;
     long waitTime = Constants.DEFAULT_WAIT;
